@@ -1,12 +1,20 @@
 package com.project.demo.service;
 
+import com.project.demo.entity.Exam;
+import com.project.demo.entity.ExamQuestion;
+import com.project.demo.entity.UserAnswer;
 import com.project.demo.service.base.BaseService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.Query;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -16,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * 覆盖: ExamService, ExamQuestionService, UserAnswerService
  */
 @SpringBootTest
+@ActiveProfiles("test")
+@AutoConfigureMockMvc
 @DisplayName("考试模块 Service 测试")
 public class ExamServiceGroupTest {
 
@@ -140,5 +150,182 @@ public class ExamServiceGroupTest {
         void testEmpty() {
             assertEquals("", examService.toWhereSql(new HashMap<>(), false, null));
         }
+    }
+
+    // ===== 真实数据 CRUD 操作测试 =====
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-考试: insert 考试 → select 验证")
+    void testInsertExam() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "单元测试考试");
+        body.put("duration", 60);
+        body.put("score", 100);
+        body.put("status", "启用");
+        examService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("name", "单元测试考试");
+        List list = examService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        examService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-考试: update 考试 → 验证更新")
+    void testUpdateExam() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "更新测试考试");
+        body.put("score", 80);
+        examService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("name", "更新测试考试");
+        Map<String, Object> updateBody = new HashMap<>();
+        updateBody.put("score", 90);
+        examService.update(query, new HashMap<>(), updateBody);
+
+        Exam exam = examService.findOne(query);
+        assertNotNull(exam);
+
+        examService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-考试: delete 考试 → 验证删除")
+    void testDeleteExam() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "删除测试考试");
+        examService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("name", "删除测试考试");
+        examService.delete(query, new HashMap<>());
+
+        Exam exam = examService.findOne(query);
+        assertNull(exam);
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-考题: insert 单选题 → 查询验证")
+    void testInsertSingleChoice() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("title", "单选择题测试");
+        body.put("type", "单选题");
+        body.put("answer", "2");
+        body.put("score", 5);
+        body.put("question_order", 1);
+        examQuestionService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("title", "单选择题测试");
+        List list = examQuestionService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        examQuestionService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-考题: insert 多选题 → 查询验证")
+    void testInsertMultiChoice() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("title", "以下哪些是水果");
+        body.put("type", "多选题");
+        body.put("answer", "A,B,C");
+        body.put("score", 10);
+        examQuestionService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("title", "以下哪些是水果");
+        assertFalse(examQuestionService.select(query, new HashMap<>()).getResultList().isEmpty());
+
+        examQuestionService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-考题: insert 判断题 → 查询验证")
+    void testInsertTrueFalse() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("title", "判断测试题");
+        body.put("type", "判断题");
+        body.put("answer", "对");
+        body.put("score", 2);
+        examQuestionService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("title", "判断测试题");
+        assertFalse(examQuestionService.select(query, new HashMap<>()).getResultList().isEmpty());
+
+        examQuestionService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-考题: count 按类型统计题目数量")
+    void testCountByType() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("title", "统计测试题");
+        body.put("type", "单选题");
+        body.put("answer", "A");
+        body.put("score", 5);
+        examQuestionService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("type", "单选题");
+        Query countQuery = examQuestionService.count(query, new HashMap<>());
+        Object result = countQuery.getSingleResult();
+        assertTrue(((Number) result).longValue() >= 1);
+
+        Map<String, String> delQuery = new HashMap<>();
+        delQuery.put("title", "统计测试题");
+        examQuestionService.delete(delQuery, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-答题: insert 答题记录 → 查询验证")
+    void testInsertAnswer() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("user_id", 1);
+        body.put("exam_id", 1);
+        body.put("score", 85);
+        body.put("score_state", 1);
+        userAnswerService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("user_id", "1");
+        List list = userAnswerService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        userAnswerService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-答题: update 答题分数 → 验证")
+    void testUpdateScore() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("user_id", 2);
+        body.put("exam_id", 1);
+        body.put("score", 70);
+        userAnswerService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("user_id", "2");
+        Map<String, Object> updateBody = new HashMap<>();
+        updateBody.put("score", 95);
+        userAnswerService.update(query, new HashMap<>(), updateBody);
+
+        UserAnswer answer = userAnswerService.findOne(query);
+        assertNotNull(answer);
+
+        userAnswerService.delete(query, new HashMap<>());
     }
 }

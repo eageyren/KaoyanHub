@@ -1,12 +1,18 @@
 package com.project.demo.service;
 
+import com.project.demo.entity.Notice;
 import com.project.demo.service.base.BaseService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.Query;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -16,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * 覆盖: NoticeService, NavAdminService, SlidesService, AuthService, SystemUserService, UploadService
  */
 @SpringBootTest
+@ActiveProfiles("test")
+@AutoConfigureMockMvc
 @DisplayName("系统管理模块 Service 测试")
 public class SystemServiceGroupTest {
 
@@ -188,5 +196,79 @@ public class SystemServiceGroupTest {
             assertEquals(expected, slidesService.encryption(input));
             assertEquals(expected, uploadService.encryption(input));
         }
+    }
+
+    // ===== 真实数据 CRUD 操作测试 =====
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-公告: insert → select 验证")
+    void testInsertNotice() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("title", "测试公告标题");
+        body.put("content", "测试公告内容");
+        noticeService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("title", "测试公告标题");
+        List list = noticeService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        noticeService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-公告: update → 验证更新")
+    void testUpdateNotice() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("title", "待更新公告");
+        body.put("content", "原始内容");
+        noticeService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("title", "待更新公告");
+        Map<String, Object> updateBody = new HashMap<>();
+        updateBody.put("content", "已更新内容");
+        noticeService.update(query, new HashMap<>(), updateBody);
+
+        Notice notice = noticeService.findOne(query);
+        assertNotNull(notice);
+
+        noticeService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-轮播图: insert → 查询验证")
+    void testInsertSlide() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("title", "测试轮播图");
+        body.put("url", "/img/test.png");
+        slidesService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("title", "测试轮播图");
+        List list = slidesService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        slidesService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-导航: insert → 查询验证")
+    void testInsertNav() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "测试导航");
+        body.put("url", "/test/page");
+        navAdminService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("name", "测试导航");
+        List list = navAdminService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        navAdminService.delete(query, new HashMap<>());
     }
 }

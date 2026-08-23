@@ -1,12 +1,10 @@
-package com.project.demo.controller;
+package com.project.demo.controller.mockmvc;
 
-import com.alibaba.fastjson.JSONObject;
-import com.project.demo.Application;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -16,7 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 各业务模块黑盒集成测试 —— 论坛、资料、院校、考试、公告等模块
  * 需要数据库连接
  */
-@SpringBootTest(classes = Application.class)
+@SpringBootTest
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
 @DisplayName("业务模块 黑盒集成测试")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)

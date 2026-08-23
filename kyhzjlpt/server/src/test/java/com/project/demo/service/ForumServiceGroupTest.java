@@ -1,12 +1,20 @@
 package com.project.demo.service;
 
+import com.project.demo.entity.Comment;
+import com.project.demo.entity.Forum;
+import com.project.demo.entity.ForumType;
 import com.project.demo.service.base.BaseService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.Query;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -16,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * 覆盖: ForumService, ForumTypeService, CommentService, PraiseService, HitsService
  */
 @SpringBootTest
+@ActiveProfiles("test")
+@AutoConfigureMockMvc
 @DisplayName("论坛模块 Service 测试")
 public class ForumServiceGroupTest {
 
@@ -180,5 +190,61 @@ public class ForumServiceGroupTest {
             assertEquals(forumService.encryption(input), commentService.encryption(input));
             assertEquals(praiseService.encryption(input), hitsService.encryption(input));
         }
+    }
+
+    // ===== 真实数据 CRUD 操作测试 =====
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-评论: insert → 查询验证")
+    void testInsertComment() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("user_id", 1);
+        body.put("content", "这是一条测试评论");
+        body.put("source_table", "forum");
+        body.put("source_field", "forum_id");
+        body.put("source_id", 1);
+        commentService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("content", "这是一条测试评论");
+        List list = commentService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        commentService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-分类: insert → 查询验证")
+    void testInsertType() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "测试分类");
+        body.put("description", "测试用分类");
+        forumTypeService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("name", "测试分类");
+        List list = forumTypeService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        forumTypeService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-分类: count 分类数量")
+    void testCountTypes() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "计数测试分类");
+        forumTypeService.insert(body);
+
+        Query countQuery = forumTypeService.count(new HashMap<>(), new HashMap<>());
+        Object result = countQuery.getSingleResult();
+        assertTrue(((Number) result).longValue() >= 1);
+
+        Map<String, String> delQuery = new HashMap<>();
+        delQuery.put("name", "计数测试分类");
+        forumTypeService.delete(delQuery, new HashMap<>());
     }
 }

@@ -1,4 +1,4 @@
-package com.project.demo.controller;
+package com.project.demo.controller.mockito;
 
 import com.project.demo.controller.OnlineQaController;
 import com.project.demo.service.OnlineQaService;
@@ -80,6 +80,25 @@ public class OnlineQaControllerTest {
 
         Map<String, Object> result = onlineQaController.add(request);
 
+        assertEquals(1, result.get("result"));
+    }
+
+    @Test
+    @DisplayName("TC-OA03: question_no 为 null → 仍尝试查询（边界测试）")
+    void testNullQuestionNo() throws IOException {
+        String json = "{\"question_no\":null,\"problem_description\":\"问题\"}";
+        BufferedReader reader = new BufferedReader(new StringReader(json));
+        when(request.getReader()).thenReturn(reader);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("question_no", null);
+        body.put("problem_description", "问题");
+        when(onlineQaService.readBody(any())).thenReturn(body);
+
+        when(onlineQaService.select(anyMap(), anyMap())).thenReturn(mockQuery);
+        when(mockQuery.getResultList()).thenReturn(new ArrayList<>());
+
+        Map<String, Object> result = onlineQaController.add(request);
         assertEquals(1, result.get("result"));
     }
 }

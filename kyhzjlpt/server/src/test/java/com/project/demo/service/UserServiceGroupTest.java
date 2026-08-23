@@ -4,10 +4,15 @@ import com.project.demo.entity.User;
 import com.project.demo.service.base.BaseService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.Query;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -18,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * 同时测试 BaseService 中的核心工具方法
  */
 @SpringBootTest
+@ActiveProfiles("test")
+@AutoConfigureMockMvc
 @DisplayName("用户模块 Service 测试")
 public class UserServiceGroupTest {
 
@@ -266,5 +273,120 @@ public class UserServiceGroupTest {
             assertNotNull(result);
             assertEquals(1, result.size());
         }
+    }
+
+    // ===== 真实数据 CRUD 操作测试 =====
+
+    private static final String TEST_USERNAME = "test_crud_user";
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-用户: insert → select 验证插入成功")
+    void testInsertAndSelect() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("username", TEST_USERNAME);
+        body.put("password", "test123");
+        body.put("state", 1);
+        userService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("username", TEST_USERNAME);
+        Query select = userService.select(query, new HashMap<>());
+        List resultList = select.getResultList();
+        assertFalse(resultList.isEmpty(), "插入后应能查询到记录");
+        assertEquals(1, resultList.size());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-用户: insert → findOne 验证单条查询")
+    void testFindOne() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("username", TEST_USERNAME);
+        body.put("password", "test123");
+        body.put("state", 1);
+        userService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("username", TEST_USERNAME);
+        User user = userService.findOne(query);
+        assertNotNull(user);
+        assertEquals(TEST_USERNAME, user.getUsername());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-用户: insert → count 验证计数正确")
+    void testCountAfterInsert() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("username", TEST_USERNAME);
+        body.put("password", "test123");
+        body.put("state", 1);
+        userService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("username", TEST_USERNAME);
+        Query countQuery = userService.count(query, new HashMap<>());
+        Object countResult = countQuery.getSingleResult();
+        assertNotNull(countResult);
+        assertEquals(1L, ((Number) countResult).longValue());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-用户: insert → update → select 验证更新生效")
+    void testUpdateThenVerify() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("username", TEST_USERNAME);
+        body.put("password", "old_password");
+        body.put("state", 1);
+        userService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("username", TEST_USERNAME);
+        Map<String, Object> updateBody = new HashMap<>();
+        updateBody.put("password", "new_password");
+        userService.update(query, new HashMap<>(), updateBody);
+
+        User updated = userService.findOne(query);
+        assertNotNull(updated);
+        assertEquals("new_password", updated.getPassword());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-用户: insert → delete → select 验证删除成功")
+    void testDeleteThenVerify() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("username", TEST_USERNAME);
+        body.put("password", "test123");
+        body.put("state", 1);
+        userService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("username", TEST_USERNAME);
+        userService.delete(query, new HashMap<>());
+
+        User deleted = userService.findOne(query);
+        assertNull(deleted, "删除后应查不到记录");
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-用户: save(User) 后可通过 findOne 查询到该用户")
+    void testSaveEntity() {
+        User user = new User();
+        user.setUsername("save_test_user");
+        user.setPassword("save_pwd");
+        user.setState(1);
+        userService.save(user);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("username", "save_test_user");
+        User found = userService.findOne(query);
+        assertNotNull(found);
+        assertEquals("save_test_user", found.getUsername());
+
+        userService.delete(query, new HashMap<>());
     }
 }

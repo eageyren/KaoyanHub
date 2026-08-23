@@ -1,4 +1,4 @@
-package com.project.demo.controller;
+package com.project.demo.controller.mockito;
 
 import com.project.demo.controller.UserController;
 import com.project.demo.entity.AccessToken;
@@ -623,6 +623,62 @@ public class UserControllerTest {
             when(tokenService.findOne(anyMap())).thenReturn(null);
 
             assertEquals(0, userController.tokenGetUserId("nonexistent_token"));
+        }
+    }
+
+    // ==================== 边界与安全测试 ====================
+
+    @Nested
+    @DisplayName("边界与安全测试")
+    class EdgeCaseTest {
+
+        @Test
+        @DisplayName("TC-EDGE01: 注册 — 密码为 null 不崩溃")
+        void testRegisterWithNullPassword() {
+            User user = new User();
+            user.setUsername("testuser_edge");
+            user.setPassword(null);
+
+            when(userService.select(anyMap(), anyMap())).thenReturn(mockQuery);
+            when(mockQuery.getResultList()).thenReturn(new ArrayList<>());
+            when(userService.encryption(isNull())).thenReturn("null_md5_hash");
+
+            Map<String, Object> result = userController.signUp(user);
+            assertNotNull(result);
+            assertEquals(1, result.get("result"));
+        }
+
+        @Test
+        @DisplayName("TC-EDGE02: 登录 — 含 SQL 注入特征的用户名被当作普通字符串处理")
+        void testLoginWithSqlInjectionUsername() {
+            Map<String, String> data = new HashMap<>();
+            data.put("username", "' OR '1'='1");
+            data.put("password", "test123");
+
+            when(userService.select(anyMap(), anyMap())).thenReturn(mockQuery);
+            when(mockQuery.getResultList()).thenReturn(new ArrayList<>());
+
+            Map<String, Object> result = userController.login(data, request);
+            assertTrue(result.containsKey("error"));
+        }
+
+        @Test
+        @DisplayName("TC-EDGE03: change_password — token 为 null → 返回错误")
+        void testChangePasswordWithNullToken() {
+            when(request.getHeader("x-auth-token")).thenReturn(null);
+
+            Map<String, String> data = new HashMap<>();
+            data.put("o_password", "old");
+            data.put("password", "new");
+
+            // tokenGetUserId(null) returns 0 → count returns 0 → 密码修改失败
+            when(userService.encryption("old")).thenReturn("old_hash");
+            when(userService.readConfig(request)).thenReturn(new HashMap<>());
+            when(userService.count(anyMap(), anyMap())).thenReturn(mockQuery);
+            when(mockQuery.getResultList()).thenReturn(Arrays.asList(0L));
+
+            Map<String, Object> result = userController.change_password(data, request);
+            assertTrue(result.containsKey("error"));
         }
     }
 }

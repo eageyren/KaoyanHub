@@ -1,4 +1,4 @@
-package com.project.demo.controller;
+package com.project.demo.controller.mockito;
 
 import com.project.demo.entity.*;
 import org.junit.jupiter.api.DisplayName;

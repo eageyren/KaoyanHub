@@ -1,12 +1,18 @@
 package com.project.demo.service;
 
+import com.project.demo.entity.CollegesAndUniversities;
 import com.project.demo.service.base.BaseService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.Query;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -17,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.*;
  *       CollegesAndUniversitiesService
  */
 @SpringBootTest
+@ActiveProfiles("test")
+@AutoConfigureMockMvc
 @DisplayName("资料与院校模块 Service 测试")
 public class MaterialsServiceGroupTest {
 
@@ -150,5 +158,118 @@ public class MaterialsServiceGroupTest {
         void testEmpty() {
             assertEquals("", materialsService.toWhereSql(new HashMap<>(), false, null));
         }
+    }
+
+    // ===== 真实数据 CRUD 操作测试 =====
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-资料: insert → select 验证")
+    void testInsertMaterial() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("data_name", "测试考研资料");
+        body.put("data_type", "真题");
+        body.put("knowledge_points", "高等数学");
+        materialsService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("data_name", "测试考研资料");
+        List list = materialsService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        materialsService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-资料: update → 验证更新")
+    void testUpdateMaterial() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("data_name", "待更新资料");
+        body.put("data_type", "笔记");
+        materialsService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("data_name", "待更新资料");
+        Map<String, Object> updateBody = new HashMap<>();
+        updateBody.put("data_name", "已更新资料");
+        materialsService.update(query, new HashMap<>(), updateBody);
+
+        Map<String, String> newQuery = new HashMap<>();
+        newQuery.put("data_name", "已更新资料");
+        assertFalse(materialsService.select(newQuery, new HashMap<>()).getResultList().isEmpty());
+
+        materialsService.delete(newQuery, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-共享: insert → 查询验证")
+    void testInsertSharing() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("data_name", "共享测试数据");
+        body.put("data_type", "课件");
+        dataSharingService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("data_name", "共享测试数据");
+        List list = dataSharingService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        dataSharingService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-院校: insert → 查询验证")
+    void testInsertCollege() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name_of_institution", "测试大学");
+        body.put("hits", 0);
+        body.put("praise_len", 0);
+        collegesService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("name_of_institution", "测试大学");
+        List list = collegesService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        collegesService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-院校: 模糊搜索院校名称")
+    void testSearchCollege() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name_of_institution", "北京大学测试");
+        collegesService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("name_of_institution", "北京");
+        Map<String, String> config = new HashMap<>();
+        config.put("like", "0");
+        List list = collegesService.select(query, config).getResultList();
+        assertFalse(list.isEmpty());
+
+        Map<String, String> delQuery = new HashMap<>();
+        delQuery.put("name_of_institution", "北京大学测试");
+        collegesService.delete(delQuery, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-院校: count 院校数量")
+    void testCountColleges() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name_of_institution", "计数测试院校");
+        collegesService.insert(body);
+
+        Query countQuery = collegesService.count(new HashMap<>(), new HashMap<>());
+        assertTrue(((Number) countQuery.getSingleResult()).longValue() >= 1);
+
+        Map<String, String> delQuery = new HashMap<>();
+        delQuery.put("name_of_institution", "计数测试院校");
+        collegesService.delete(delQuery, new HashMap<>());
     }
 }

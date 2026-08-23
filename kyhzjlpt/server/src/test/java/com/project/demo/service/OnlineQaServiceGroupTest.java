@@ -1,12 +1,18 @@
 package com.project.demo.service;
 
+import com.project.demo.entity.OnlineQa;
+import com.project.demo.entity.OnlineQuestions;
 import com.project.demo.service.base.BaseService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -16,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * 覆盖: OnlineQaService, OnlineQuestionsService
  */
 @SpringBootTest
+@ActiveProfiles("test")
+@AutoConfigureMockMvc
 @DisplayName("在线问答模块 Service 测试")
 public class OnlineQaServiceGroupTest {
 
@@ -149,5 +157,82 @@ public class OnlineQaServiceGroupTest {
                     onlineQuestionsService.encryption(input)
             );
         }
+    }
+
+    // ===== 真实数据 CRUD 操作测试 =====
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-提问: insert → select 验证")
+    void testInsertQuestion() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("question_no", "TEST-Q-001");
+        body.put("ask_the_user", 1);
+        body.put("problem_description", "这是一个测试问题");
+        body.put("examine_state", "待审核");
+        onlineQuestionsService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("question_no", "TEST-Q-001");
+        List list = onlineQuestionsService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        onlineQuestionsService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-提问: update 审核状态 → 验证更新")
+    void testUpdateExamineState() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("question_no", "TEST-Q-002");
+        body.put("ask_the_user", 2);
+        body.put("examine_state", "待审核");
+        onlineQuestionsService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("question_no", "TEST-Q-002");
+        Map<String, Object> updateBody = new HashMap<>();
+        updateBody.put("examine_state", "已通过");
+        onlineQuestionsService.update(query, new HashMap<>(), updateBody);
+
+        OnlineQuestions q = onlineQuestionsService.findOne(query);
+        assertNotNull(q);
+
+        onlineQuestionsService.delete(query, new HashMap<>());
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-提问: delete → 验证删除")
+    void testDeleteQuestion() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("question_no", "TEST-Q-003");
+        body.put("ask_the_user", 3);
+        onlineQuestionsService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("question_no", "TEST-Q-003");
+        onlineQuestionsService.delete(query, new HashMap<>());
+
+        assertNull(onlineQuestionsService.findOne(query));
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("CRUD-答疑: insert → 查询验证")
+    void testInsertQa() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("question_no", "TEST-QA-001");
+        body.put("ask_the_user", 4);
+        body.put("qa_description", "这是答疑内容");
+        onlineQaService.insert(body);
+
+        Map<String, String> query = new HashMap<>();
+        query.put("question_no", "TEST-QA-001");
+        List list = onlineQaService.select(query, new HashMap<>()).getResultList();
+        assertFalse(list.isEmpty());
+
+        onlineQaService.delete(query, new HashMap<>());
     }
 }
